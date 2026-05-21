@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Think Like Christopher — Identity Map Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@300;400;500&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08070f;
+  --surface: #110f1e;
+  --card: #181628;
+  --card2: #1e1c30;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --correct: #4ade9a;
+  --correct-dim: rgba(74,222,154,0.12);
+  --correct-line: rgba(74,222,154,0.4);
+  --wrong: #f06060;
+  --wrong-dim: rgba(240,96,96,0.1);
+  --wrong-line: rgba(240,96,96,0.35);
+  --gold: #f0d080;
+  --gold-dim: rgba(240,208,128,0.1);
+  --gold-line: rgba(240,208,128,0.35);
+  --blue: #70a8f0;
+  --blue-dim: rgba(112,168,240,0.12);
+  --blue-line: rgba(112,168,240,0.4);
+  --purple: #b080f0;
+  --purple-dim: rgba(176,128,240,0.12);
+  --purple-line: rgba(176,128,240,0.4);
+  --text: #ccc8e0;
+  --muted: #6a6680;
+  --serif: 'Playfair Display', serif;
+  --body: 'Lora', serif;
+  --mono: 'DM Mono', monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background-image:
+  radial-gradient(1px 1px at 7% 10%,rgba(255,255,255,0.5) 0%,transparent 100%),
+  radial-gradient(1px 1px at 20% 4%,rgba(255,255,255,0.3) 0%,transparent 100%),
+  radial-gradient(1.2px 1.2px at 38% 16%,rgba(255,255,255,0.55) 0%,transparent 100%),
+  radial-gradient(1px 1px at 60% 7%,rgba(255,255,255,0.4) 0%,transparent 100%),
+  radial-gradient(1px 1px at 76% 20%,rgba(255,255,255,0.45) 0%,transparent 100%),
+  radial-gradient(0.8px 0.8px at 89% 5%,rgba(255,255,255,0.4) 0%,transparent 100%),
+  radial-gradient(1px 1px at 14% 38%,rgba(255,255,255,0.25) 0%,transparent 100%),
+  radial-gradient(1px 1px at 53% 33%,rgba(255,255,255,0.2) 0%,transparent 100%),
+  radial-gradient(1px 1px at 94% 43%,rgba(255,255,255,0.35) 0%,transparent 100%);
+pointer-events:none;z-index:0;}
+
+.wrap{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:1.5rem 1.25rem 5rem;}
+
+/* ── HEADER ── */
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);}
+.hdr-logo{font-family:var(--serif);font-size:14px;font-style:italic;color:var(--muted);}
+.hdr-logo span{color:var(--gold);font-style:normal;}
+.hdr-right{display:flex;align-items:center;gap:1rem;}
+.lives{display:flex;gap:5px;}
+.life{width:16px;height:16px;border-radius:50%;background:var(--wrong);transition:all 0.3s;box-shadow:0 0 6px rgba(240,96,96,0.5);}
+.life.lost{background:rgba(255,255,255,0.08);box-shadow:none;}
+.round-info{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:0.06em;}
+
+/* ── PROGRESS ── */
+.progress-track{display:flex;gap:3px;margin-bottom:1.5rem;}
+.pseg{flex:1;height:3px;border-radius:2px;background:var(--card2);transition:background 0.4s;}
+.pseg.done{background:var(--correct);}
+.pseg.cur{background:var(--gold);}
+.pseg.fail{background:var(--wrong);}
+
+/* ── PHASE LABEL ── */
+.phase-label{font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:1.25rem;display:flex;align-items:center;gap:10px;}
+.phase-label::before,.phase-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ── MAIN LAYOUT ── */
+.game-layout{display:grid;grid-template-columns:1fr 280px;gap:1.25rem;align-items:start;}
+.p2-layout{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start;}
+
+/* ── QUESTION CARD ── */
+.q-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;animation:up 0.35s ease;}
+@keyframes up{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.q-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);margin-bottom:7px;}
+.q-scene{font-size:13px;font-style:italic;color:var(--muted);border-left:2px solid rgba(240,208,128,0.4);padding-left:11px;margin-bottom:1rem;line-height:1.75;}
+.q-prompt{font-family:var(--serif);font-size:17px;color:#fff;line-height:1.5;margin-bottom:1rem;}
+.hint-box{display:flex;gap:8px;align-items:flex-start;background:var(--gold-dim);border:1px solid rgba(240,208,128,0.15);border-radius:7px;padding:9px 13px;margin-bottom:1rem;font-size:12px;color:var(--gold);line-height:1.6;}
+.hint-box::before{content:'◆';flex-shrink:0;font-size:9px;margin-top:2px;}
+
+/* ── CHOICES ── */
+.choices{display:flex;flex-direction:column;gap:7px;}
+.choice{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-family:var(--body);font-size:13px;color:var(--text);cursor:pointer;text-align:left;transition:all 0.16s;line-height:1.6;display:flex;align-items:flex-start;gap:11px;width:100%;}
+.choice:hover:not(:disabled){border-color:var(--border2);background:rgba(255,255,255,0.03);color:#fff;}
+.choice:disabled{cursor:default;}
+.cletter{flex-shrink:0;width:21px;height:21px;border-radius:4px;border:1px solid var(--border2);font-family:var(--mono);font-size:10px;display:flex;align-items:center;justify-content:center;color:var(--muted);margin-top:1px;transition:all 0.16s;}
+.choice.c-correct{background:var(--correct-dim);border-color:var(--correct-line);color:#c0f5dc;}
+.choice.c-correct .cletter{background:var(--correct);border-color:var(--correct);color:#051a0e;font-weight:500;}
+.choice.c-wrong{background:var(--wrong-dim);border-color:var(--wrong-line);color:#f5c0c0;}
+.choice.c-wrong .cletter{background:var(--wrong);border-color:var(--wrong);color:#1a0505;}
+.choice.c-dim{opacity:0.25;}
+/* Phase 2 choice colors */
+.choice.p2-internal{background:var(--correct-dim);border-color:var(--correct-line);color:#c0f5dc;}
+.choice.p2-internal .cletter{background:var(--correct);border-color:var(--correct);color:#051a0e;}
+.choice.p2-external{background:var(--blue-dim);border-color:var(--blue-line);color:#c0d8f5;}
+.choice.p2-external .cletter{background:var(--blue);border-color:var(--blue);color:#050d1a;}
+.choice.p2-conflict{background:var(--wrong-dim);border-color:var(--wrong-line);color:#f5c0c0;}
+.choice.p2-conflict .cletter{background:var(--wrong);border-color:var(--wrong);color:#1a0505;}
+.choice.p2-value{background:var(--gold-dim);border-color:var(--gold-line);color:#f5e8c0;}
+.choice.p2-value .cletter{background:var(--gold);border-color:var(--gold);color:#1a1205;}
+.choice.p2-strength{background:var(--purple-dim);border-color:var(--purple-line);color:#dcc0f5;}
+.choice.p2-strength .cletter{background:var(--purple);border-color:var(--purple);color:#0d051a;}
+
+/* ── FEEDBACK ── */
+.feedback{margin-top:1rem;border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.7;display:none;animation:up 0.3s ease;}
+.feedback.show{display:block;}
+.feedback.fb-c{background:var(--correct-dim);border:1px solid var(--correct-line);color:#c0f5dc;}
+.feedback.fb-w{background:var(--wrong-dim);border:1px solid var(--wrong-line);color:#f5c0c0;}
+.feedback.fb-p2{background:rgba(255,255,255,0.04);border:1px solid var(--border2);color:var(--text);}
+.fb-head{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;font-weight:500;margin-bottom:5px;}
+.fb-tag{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;background:var(--gold-dim);color:var(--gold);letter-spacing:0.05em;}
+
+/* ── NEXT BTN ── */
+.next-btn{margin-top:1rem;background:transparent;border:1px solid var(--correct);color:var(--correct);font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;padding:10px 22px;border-radius:6px;cursor:pointer;display:none;transition:all 0.18s;}
+.next-btn:hover{background:var(--correct);color:var(--bg);}
+.next-btn.show{display:inline-block;}
+.next-btn.gold{border-color:var(--gold);color:var(--gold);}
+.next-btn.gold:hover{background:var(--gold);color:var(--bg);}
+
+/* ── IDENTITY MAP ── */
+.map-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;position:sticky;top:1.5rem;}
+.map-title{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:.75rem;}
+.map-svg-wrap svg{width:100%;display:block;}
+
+/* Map legend */
+.map-legend{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:.75rem;}
+.legend-pip{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:0.06em;}
+.pip-dot{width:7px;height:7px;border-radius:50%;}
+
+/* Map stats */
+.map-stats{display:flex;justify-content:space-around;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);}
+.mstat{text-align:center;}
+.mstat-num{font-family:var(--serif);font-size:22px;line-height:1;}
+.mstat-num.green{color:var(--correct);}
+.mstat-num.red{color:var(--wrong);}
+.mstat-num.blue{color:var(--blue);}
+.mstat-num.gold{color:var(--gold);}
+.mstat-num.purple{color:var(--purple);}
+.mstat-label{font-family:var(--mono);font-size:8px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+
+/* ── OVERLAYS ── */
+.overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(8,7,15,0.93);align-items:center;justify-content:center;}
+.overlay.show{display:flex;}
+.obox{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:2.5rem 2rem;text-align:center;max-width:420px;width:90%;animation:up 0.4s ease;}
+.obox-icon{font-size:44px;margin-bottom:1rem;}
+.obox-title{font-family:var(--serif);font-size:26px;color:#fff;margin-bottom:8px;}
+.obox-sub{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:1.5rem;}
+.obtn{background:transparent;border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;padding:10px 20px;border-radius:6px;cursor:pointer;transition:all 0.18s;margin:4px;}
+.obtn:hover{border-color:var(--gold);color:var(--gold);}
+.obtn.primary{border-color:var(--correct);color:var(--correct);}
+.obtn.primary:hover{background:var(--correct);color:var(--bg);}
+
+/* ── TRANSITION SCREEN ── */
+.transition-screen{display:none;animation:up 0.5s ease;}
+.transition-screen.show{display:block;}
+.trans-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:3rem 2rem;text-align:center;}
+.trans-title{font-family:var(--serif);font-size:30px;color:#fff;margin-bottom:.75rem;}
+.trans-sub{font-size:14px;color:var(--muted);line-height:1.8;max-width:500px;margin:0 auto 2rem;}
+.score-chips{display:flex;justify-content:center;gap:1.5rem;margin-bottom:2rem;flex-wrap:wrap;}
+.schip{text-align:center;}
+.schip-num{font-family:var(--serif);font-size:42px;line-height:1;}
+.schip-label{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-top:3px;}
+
+/* ── END SCREEN ── */
+.end-screen{display:none;animation:up 0.5s ease;}
+.end-screen.show{display:block;}
+.end-maps-row{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;}
+.end-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;text-align:center;}
+.end-card-title{font-family:var(--serif);font-size:16px;color:#fff;margin-bottom:.5rem;}
+.end-card-sub{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:1rem;}
+.trait-cloud{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:1rem;}
+.tpill{font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:12px;letter-spacing:0.04em;}
+.tpill.green{background:var(--correct-dim);border:1px solid var(--correct-line);color:var(--correct);}
+.tpill.blue{background:var(--blue-dim);border:1px solid var(--blue-line);color:var(--blue);}
+.tpill.red{background:var(--wrong-dim);border:1px solid var(--wrong-line);color:var(--wrong);}
+.tpill.gold{background:var(--gold-dim);border:1px solid var(--gold-line);color:var(--gold);}
+.tpill.purple{background:var(--purple-dim);border:1px solid var(--purple-line);color:var(--purple);}
+.compare-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:1.25rem;}
+.compare-title{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;text-align:center;}
+.compare-row{display:flex;align-items:center;gap:1rem;margin-bottom:.6rem;font-size:13px;}
+.compare-label{font-family:var(--mono);font-size:11px;width:140px;flex-shrink:0;color:var(--muted);}
+.compare-bar-wrap{flex:1;display:flex;gap:4px;align-items:center;}
+.compare-bar{height:6px;border-radius:3px;min-width:4px;transition:width 0.6s;}
+.compare-val{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:4px;width:16px;}
+.restart-btn{font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;padding:10px 22px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.18s;}
+.restart-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+@media(max-width:620px){
+  .game-layout,.p2-layout,.end-maps-row{grid-template-columns:1fr;}
+  .map-panel{position:static;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-logo">The <span>Curious Incident</span> — Identity Map</div>
+    <div class="hdr-right">
+      <div class="lives" id="lives">
+        <div class="life" id="l1"></div>
+        <div class="life" id="l2"></div>
+        <div class="life" id="l3"></div>
+      </div>
+      <div class="round-info" id="round-info">Round 1 / 12</div>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-track" id="progress-track"></div>
+
+  <!-- Phase 1 -->
+  <div id="phase1">
+    <div class="phase-label">Phase 1 — Think Like Christopher</div>
+    <div class="game-layout">
+      <div id="q-area"></div>
+      <div class="map-panel">
+        <div class="map-title">Christopher's identity map</div>
+        <div class="map-svg-wrap">
+          <svg id="p1-map" viewBox="0 0 260 280" xmlns="http://www.w3.org/2000/svg">
+            <rect width="260" height="280" fill="#110f1e" rx="6"/>
+            <!-- Grid -->
+            <line x1="130" y1="0" x2="130" y2="280" stroke="rgba(255,255,255,0.04)" stroke-width="0.5"/>
+            <line x1="0" y1="140" x2="260" y2="140" stroke="rgba(255,255,255,0.04)" stroke-width="0.5"/>
+            <!-- Orbit rings -->
+            <circle cx="130" cy="140" r="95" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" stroke-dasharray="4,5"/>
+            <circle cx="130" cy="140" r="62" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.5" stroke-dasharray="3,4"/>
+            <!-- Axis labels -->
+            <text x="130" y="12" text-anchor="middle" font-family="DM Mono" font-size="7" fill="rgba(255,255,255,0.18)" letter-spacing="0.12em">EXTERNAL</text>
+            <text x="130" y="274" text-anchor="middle" font-family="DM Mono" font-size="7" fill="rgba(255,255,255,0.18)" letter-spacing="0.12em">INTERNAL</text>
+            <text x="8" y="143" font-family="DM Mono" font-size="7" fill="rgba(255,255,255,0.18)" letter-spacing="0.08em" transform="rotate(-90,8,143)">RELATIONS</text>
+            <text x="255" y="143" font-family="DM Mono" font-size="7" fill="rgba(255,255,255,0.18)" letter-spacing="0.08em" transform="rotate(90,255,143)">LOGIC</text>
+            <!-- Christopher node -->
+            <circle cx="130" cy="140" r="30" fill="#1e1c30" stroke="rgba(240,208,128,0.35)" stroke-width="1.5"/>
+            <circle cx="130" cy="140" r="20" fill="#231f38" stroke="rgba(240,208,128,0.15)" stroke-width="1" stroke-dasharray="3,3"/>
+            <text x="130" y="136" text-anchor="middle" font-family="Playfair Display" font-size="10" fill="#f0d080" font-style="italic">Chris-</text>
+            <text x="130" y="149" text-anchor="middle" font-family="Playfair Display" font-size="10" fill="#f0d080" font-style="italic">topher</text>
+            <g id="p1-lines"></g>
+            <g id="p1-nodes"></g>
+          </svg>
+        </div>
+        <div class="map-legend">
+          <div class="legend-pip"><div class="pip-dot" style="background:var(--correct)"></div>Correct</div>
+          <div class="legend-pip"><div class="pip-dot" style="background:var(--wrong)"></div>Wrong</div>
+        </div>
+        <div class="map-stats">
+          <div class="mstat"><div class="mstat-num green" id="s-correct">0</div><div class="mstat-label">Correct</div></div>
+          <div class="mstat"><div class="mstat-num red" id="s-wrong">0</div><div class="mstat-label">Wrong</div></div>
+          <div class="mstat"><div class="mstat-num" style="color:var(--muted)" id="s-left">12</div><div class="mstat-label">Left</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transition screen -->
+  <div class="transition-screen" id="transition-screen">
+    <div class="trans-card">
+      <div class="trans-title">Phase 1 complete</div>
+      <div class="trans-sub">You've mapped how Christopher sees the world. Now it's your turn — build your own identity map using the same questions. There are no wrong answers.</div>
+      <div class="score-chips">
+        <div class="schip"><div class="schip-num" style="color:var(--correct)" id="t-correct">0</div><div class="schip-label">Correct</div></div>
+        <div class="schip"><div class="schip-num" style="color:var(--wrong)" id="t-wrong">0</div><div class="schip-label">Wrong</div></div>
+      </div>
+      <button class="next-btn gold show" onclick="startPhase2()">Build my identity map →</button>
+    </div>
+  </div>
+
+  <!-- Phase 2 -->
+  <div id="phase2" style="display:none;">
+    <div class="phase-label">Phase 2 — Build Your Identity Map</div>
+    <div class="p2-layout">
+      <div id="p2-q-area"></div>
+      <!-- Phase 2 maps side by side -->
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        <!-- Christopher's completed map -->
+        <div class="map-panel">
+          <div class="map-title">Christopher's map (completed)</div>
+          <div class="map-svg-wrap">
+            <svg id="p2-chris-map" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
+              <rect width="260" height="260" fill="#110f1e" rx="6"/>
+              <circle cx="130" cy="130" r="88" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" stroke-dasharray="4,5"/>
+              <circle cx="130" cy="130" r="57" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" stroke-dasharray="3,4"/>
+              <circle cx="130" cy="130" r="28" fill="#1e1c30" stroke="rgba(240,208,128,0.35)" stroke-width="1.5"/>
+              <circle cx="130" cy="130" r="18" fill="#231f38" stroke="rgba(240,208,128,0.15)" stroke-width="1" stroke-dasharray="3,3"/>
+              <text x="130" y="126" text-anchor="middle" font-family="Playfair Display" font-size="9" fill="#f0d080" font-style="italic">Chris-</text>
+              <text x="130" y="138" text-anchor="middle" font-family="Playfair Display" font-size="9" fill="#f0d080" font-style="italic">topher</text>
+              <g id="p2-c-lines"></g>
+              <g id="p2-c-nodes"></g>
+            </svg>
+          </div>
+          <div class="map-legend" id="p2-c-legend"></div>
+        </div>
+        <!-- Player's map -->
+        <div class="map-panel">
+          <div class="map-title">Your identity map</div>
+          <div class="map-svg-wrap">
+            <svg id="p2-you-map" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
+              <rect width="260" height="260" fill="#110f1e" rx="6"/>
+              <circle cx="130" cy="130" r="88" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" stroke-dasharray="4,5"/>
+              <circle cx="130" cy="130" r="57" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" stroke-dasharray="3,4"/>
+              <circle cx="130" cy="130" r="28" fill="#1e1c30" stroke="rgba(112,168,240,0.35)" stroke-width="1.5"/>
+              <circle cx="130" cy="130" r="18" fill="#231f38" stroke="rgba(112,168,240,0.15)" stroke-width="1" stroke-dasharray="3,3"/>
+              <text x="130" y="126" text-anchor="middle" font-family="Playfair Display" font-size="10" fill="#70a8f0" font-style="italic">You</text>
+              <g id="p2-y-lines"></g>
+              <g id="p2-y-nodes"></g>
+            </svg>
+          </div>
+          <div class="map-legend" id="p2-y-legend"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- End screen -->
+  <div class="end-screen" id="end-screen">
+    <div class="end-maps-row">
+      <div class="end-card">
+        <div class="end-card-title">Christopher's identity</div>
+        <div class="end-card-sub">Built from logic, evidence, and the forces that shaped him</div>
+        <svg id="end-c-map" viewBox="0 0 220 220" style="width:100%;display:block;" xmlns="http://www.w3.org/2000/svg">
+          <rect width="220" height="220" fill="#110f1e" rx="6"/>
+          <circle cx="110" cy="110" r="75" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" stroke-dasharray="4,5"/>
+          <circle cx="110" cy="110" r="48" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" stroke-dasharray="3,4"/>
+          <circle cx="110" cy="110" r="25" fill="#1e1c30" stroke="rgba(240,208,128,0.35)" stroke-width="1.5"/>
+          <text x="110" y="107" text-anchor="middle" font-family="Playfair Display" font-size="8" fill="#f0d080" font-style="italic">Chris-</text>
+          <text x="110" y="118" text-anchor="middle" font-family="Playfair Display" font-size="8" fill="#f0d080" font-style="italic">topher</text>
+          <g id="end-c-lines"></g><g id="end-c-nodes"></g>
+        </svg>
+        <div class="trait-cloud" id="end-c-traits"></div>
+      </div>
+      <div class="end-card">
+        <div class="end-card-title">Your identity</div>
+        <div class="end-card-sub">Built from your own choices about who you are</div>
+        <svg id="end-y-map" viewBox="0 0 220 220" style="width:100%;display:block;" xmlns="http://www.w3.org/2000/svg">
+          <rect width="220" height="220" fill="#110f1e" rx="6"/>
+          <circle cx="110" cy="110" r="75" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" stroke-dasharray="4,5"/>
+          <circle cx="110" cy="110" r="48" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" stroke-dasharray="3,4"/>
+          <circle cx="110" cy="110" r="25" fill="#1e1c30" stroke="rgba(112,168,240,0.35)" stroke-width="1.5"/>
+          <text x="110" y="113" text-anchor="middle" font-family="Playfair Display" font-size="10" fill="#70a8f0" font-style="italic">You</text>
+          <g id="end-y-lines"></g><g id="end-y-nodes"></g>
+        </svg>
+        <div class="trait-cloud" id="end-y-traits"></div>
+      </div>
+    </div>
+    <div class="compare-card">
+      <div class="compare-title">How your identity compares to Christopher's</div>
+      <div id="compare-rows"></div>
+    </div>
+    <div style="text-align:center;">
+      <button class="restart-btn" onclick="restart()">Play again</button>
+    </div>
+  </div>
+
+</div>
+
+  <!-- Intro screen -->
+  <div id="intro-screen" style="display:none;">
+    <div style="min-height:80vh;display:flex;align-items:center;justify-content:center;">
+      <div style="background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:3rem 2.5rem;max-width:560px;width:100%;text-align:center;animation:up 0.5s ease;">
+        <!-- Star decoration -->
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;">The Curious Incident of the Dog in the Night-Time</div>
+        <h1 style="font-family:var(--serif);font-size:36px;color:#fff;line-height:1.2;margin-bottom:.5rem;">Think Like<br><span style="color:var(--gold);font-style:italic;">Christopher</span></h1>
+        <p style="font-size:14px;color:var(--muted);font-style:italic;margin-bottom:2rem;line-height:1.7;">An identity map game in two phases</p>
+
+        <!-- Rules -->
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:1.5rem;text-align:left;margin-bottom:2rem;">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">How to play</div>
+          <ol style="padding-left:1.25rem;display:flex;flex-direction:column;gap:10px;">
+            <li style="font-size:13px;color:var(--text);line-height:1.6;"><strong style="color:#fff;">Phase 1 — Think Like Christopher</strong><br>12 rounds. Each round shows a scene from the novel and asks what Christopher would do. Choose the correct answer — the one that reflects how Christopher actually thinks. Wrong answers cost you a life.</li>
+            <li style="font-size:13px;color:var(--text);line-height:1.6;"><strong style="color:#fff;">3 lives</strong><br>You start with 3 hearts. Lose one for every wrong answer. Lose all three and the game ends.</li>
+            <li style="font-size:13px;color:var(--text);line-height:1.6;"><strong style="color:#fff;">Watch the identity map build</strong><br>Every answer adds a node to Christopher's identity map on the right — green for correct, red for wrong.</li>
+            <li style="font-size:13px;color:var(--text);line-height:1.6;"><strong style="color:#fff;">Phase 2 — Build Your Own Map</strong><br>After Phase 1, you answer the same style of questions about yourself. No wrong answers. Your identity map is built side by side with Christopher's so you can compare.</li>
+            <li style="font-size:13px;color:var(--text);line-height:1.6;"><strong style="color:#fff;">The goal</strong><br>Understand how Christopher sees the world — and discover how your own identity compares to his.</li>
+          </ol>
+        </div>
+
+        <!-- Color key -->
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:2rem;">
+          <div style="display:flex;align-items:center;gap:6px;background:rgba(74,222,154,0.1);border:1px solid rgba(74,222,154,0.3);border-radius:20px;padding:5px 12px;font-family:var(--mono);font-size:11px;color:#4ade9a;">✓ Correct</div>
+          <div style="display:flex;align-items:center;gap:6px;background:rgba(240,96,96,0.1);border:1px solid rgba(240,96,96,0.3);border-radius:20px;padding:5px 12px;font-family:var(--mono);font-size:11px;color:#f06060;">✗ Wrong (lose a life)</div>
+          <div style="display:flex;align-items:center;gap:6px;background:rgba(240,208,128,0.1);border:1px solid rgba(240,208,128,0.3);border-radius:20px;padding:5px 12px;font-family:var(--mono);font-size:11px;color:#f0d080;">Phase 2: no wrong answers</div>
+        </div>
+
+        <button onclick="startGame()" style="background:var(--correct);color:#05150e;border:none;border-radius:8px;padding:14px 40px;font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;width:100%;">Play Now →</button>
+      </div>
+    </div>
+  </div>
+
+
+<!-- Game over overlay -->
+<div class="overlay" id="gameover">
+  <div class="obox">
+    <div class="obox-icon">💔</div>
+    <div class="obox-title">Out of lives</div>
+    <div class="obox-sub">Christopher's world became overwhelming. You didn't think quite like him — but look how far your map got.</div>
+    <button class="obtn primary" onclick="restart()">Try again</button>
+    <button class="obtn" onclick="goToTransition()">See results</button>
+  </div>
+</div>
+
+<script>
+// ── NODE POSITIONS (12 slots around center, evenly spaced on orbit) ──────────
+function getOrbitPos(i, total, cx, cy, r) {
+  const angle = (i / total) * 2 * Math.PI - Math.PI / 2;
+  return { x: Math.round(cx + r * Math.cos(angle)), y: Math.round(cy + r * Math.sin(angle)) };
+}
+const P1_NODES = Array.from({length:12},(_,i)=>getOrbitPos(i,12,130,140,82));
+const P2_NODES = Array.from({length:12},(_,i)=>getOrbitPos(i,12,130,130,78));
+const END_NODES = Array.from({length:12},(_,i)=>getOrbitPos(i,12,110,110,65));
+
+// ── PHASE 1 QUESTIONS ────────────────────────────────────────────────────────
+const P1Q = [
+  {
+    num:1, scene:"[SCENE] Christopher finds Wellington dead in Mrs Shears' garden at 7 minutes after midnight.",
+    prompt:"What is the first thing Christopher does?",
+    hint:"Christopher always begins with observable facts, not feelings.",
+    literary:"Narrative voice", correct:2, trait:"Logical first response",
+    choices:[
+      {t:"He cries because Wellington is dead."},
+      {t:"He knocks on Mrs Shears' door to tell her."},
+      {t:"He notes the fork position, counts the wounds, records the time."},
+      {t:"He runs home to avoid getting in trouble."}
+    ],
+    fb_c:"Correct — Christopher thinks like a detective. He collects evidence before anything else. Literary element: first-person narration shaped by Christopher's unique cognition.",
+    fb_w:"Christopher does not start with feelings or social responses. He starts with observable, measurable facts. That is his narrative voice."
+  },
+  {
+    num:2, scene:"[SCENE] A stranger asks Christopher what his name is and how old he is.",
+    prompt:"How does Christopher respond?",
+    hint:"Christopher answers questions literally and completely.",
+    literary:"Characterisation", correct:3, trait:"Literal honesty",
+    choices:[
+      {t:"He says 'fine thanks' and walks away quickly."},
+      {t:"He asks why the stranger wants to know first."},
+      {t:"He gives a short answer and changes the subject."},
+      {t:"He gives his full name and exact age without hesitation."},
+      {t:"He looks to his father before speaking."}
+    ],
+    fb_c:"Yes — Christopher answers completely and literally. He gives his full name every time. This is direct characterisation: Haddon shows us who Christopher is through how he speaks.",
+    fb_w:"Christopher doesn't use social shortcuts. He answers questions with full, exact information. Filtering or deflecting are neurotypical strategies — not Christopher's."
+  },
+  {
+    num:3, scene:"[SCENE] Christopher decides to investigate Wellington's murder.",
+    prompt:"Why does Christopher decide to investigate?",
+    hint:"Christopher's motivations are logical, not emotional.",
+    literary:"Theme: identity", correct:0, trait:"Detective logic",
+    choices:[
+      {t:"It is a problem with a solution, and he intends to find it."},
+      {t:"He wants to prove himself to Siobhan."},
+      {t:"He feels responsible because he found the body."},
+      {t:"He wants whoever did it to be punished."}
+    ],
+    fb_c:"Exactly. Christopher frames the investigation as a solvable logic problem — like Sherlock Holmes. The puzzle is his motivation. Literary element: characterisation through motivation.",
+    fb_w:"Christopher's decision is logical, not emotional. He doesn't feel guilty or want revenge — those are emotional motivations. He investigates because it is a problem with a solution."
+  },
+  {
+    num:4, scene:"[SCENE] Christopher sees four red cars in a row on the way to school.",
+    prompt:"What does Christopher decide about today?",
+    hint:"Christopher uses personal rules and systems to interpret the world.",
+    literary:"Symbolism", correct:1, trait:"Personal rule systems",
+    choices:[
+      {t:"He ignores them — they are just cars."},
+      {t:"It is a Good Day. Four red cars in a row is one of his rules."},
+      {t:"He feels cheerful but is not sure why."},
+      {t:"He decides to take a different route home."},
+      {t:"He tells Father so he can record it in his diary."}
+    ],
+    fb_c:"Correct. Christopher has invented personal rules — red cars mean Good Days, yellow cars mean Black Days. Not superstition: a logical system to impose order on randomness. Literary device: symbolic personal logic.",
+    fb_w:"Christopher has invented rules that give meaning to ordinary observations. He doesn't ignore patterns — he builds systems from them."
+  },
+  {
+    num:5, scene:"[SCENE] Father tells Christopher that Mother died of a heart attack two years ago.",
+    prompt:"How does Christopher react when he first hears this?",
+    hint:"Christopher processes information literally first.",
+    literary:"Unreliable narrator", correct:2, trait:"Truth as absolute",
+    choices:[
+      {t:"He cries and asks about the hospital."},
+      {t:"He suspects it is a lie and starts searching."},
+      {t:"He accepts it as fact. Father would not lie to him."},
+      {t:"He calls Siobhan to ask if it is true."}
+    ],
+    fb_c:"Yes. Christopher trusts Father completely at this point. He cannot conceive that Father would lie — because Christopher himself cannot lie. This is the seed of the novel's central dramatic irony. Literary device: unreliable narrator created by limited perspective.",
+    fb_w:"At this point, Christopher trusts Father completely. He has no reason to doubt him — Christopher himself never lies, and he assumes the same of those close to him."
+  },
+  {
+    num:6, scene:"[SCENE] Christopher finds letters from Mother hidden in Father's cupboard.",
+    prompt:"What does Christopher do with the letters?",
+    hint:"Christopher follows evidence wherever it leads.",
+    literary:"Plot development", correct:3, trait:"Evidence over comfort",
+    choices:[
+      {t:"He puts them back — they are private."},
+      {t:"He asks Father about them directly."},
+      {t:"He feels frightened and goes to his room."},
+      {t:"He reads every single one. They are evidence."},
+      {t:"He hides them so Father will not know."}
+    ],
+    fb_c:"Correct. Christopher does not weigh privacy against evidence — evidence must be gathered. His detective logic applies to everything, including things that will change his world completely.",
+    fb_w:"Christopher doesn't filter evidence by how uncomfortable it might be. He reads everything because everything is data. Social conventions like privacy don't override his investigative logic."
+  },
+  {
+    num:7, scene:"[SCENE] A stranger on the train tries to make small talk with Christopher.",
+    prompt:"How does Christopher handle the conversation?",
+    hint:"Small talk is one of the hardest social tasks for Christopher.",
+    literary:"Characterisation", correct:0, trait:"Literal conversation",
+    choices:[
+      {t:"He answers each question precisely and cannot see why the stranger looks annoyed."},
+      {t:"He enjoys the chat and tells them about his trip."},
+      {t:"He pretends to be asleep so he does not have to talk."},
+      {t:"He asks the stranger to stop because the noise is too much."}
+    ],
+    fb_c:"Yes — Christopher answers literally and accurately. He gives facts; the stranger wants pleasantries. He doesn't understand the gap. This gap is central characterisation.",
+    fb_w:"Christopher doesn't pretend or deflect — he engages literally. The problem is not refusal; it's that he doesn't understand the social game being played."
+  },
+  {
+    num:8, scene:"[SCENE] Christopher arrives at a crowded London train station for the first time.",
+    prompt:"What happens to Christopher in the crowd?",
+    hint:"Sensory overload is real and physical for Christopher.",
+    literary:"Theme: perspective", correct:2, trait:"Sensory overload",
+    choices:[
+      {t:"He asks a police officer to help him navigate."},
+      {t:"He feels a surge of excitement at all the activity."},
+      {t:"The noise and movement overwhelm him. He crouches down and holds his knees."},
+      {t:"He follows the signs confidently — he memorised the map."},
+      {t:"He counts prime numbers in his head until he feels steady."}
+    ],
+    fb_c:"Correct. The station is one of the most visceral scenes in the novel — Haddon makes us feel Christopher's sensory experience as physical collapse. Literary element: perspective — the reader experiences the world as Christopher does.",
+    fb_w:"The station overwhelms Christopher completely. It isn't managed calmly or solved quickly — it is a crisis."
+  },
+  {
+    num:9, scene:"[SCENE] Father confesses that he killed Wellington and lied about Mother being dead.",
+    prompt:"What does Christopher feel towards Father in this moment?",
+    hint:"Christopher processes this through his logic of truth.",
+    literary:"Theme: trust and betrayal", correct:3, trait:"Logic of trust",
+    choices:[
+      {t:"He forgives Father, who was only trying to protect him."},
+      {t:"He shouts at Father out of pure anger."},
+      {t:"He feels nothing — he does not understand what it means."},
+      {t:"He cannot stay near Father. A person who lies is an unsafe source."}
+    ],
+    fb_c:"Yes. For Christopher, the revelation is logical: if Father lied, Father is an unreliable source. An unreliable source makes the world unsafe. Christopher's world is built on certainty — the lies destroy his safety. Literary element: characterisation through logical reasoning about trust.",
+    fb_w:"Christopher doesn't process betrayal through emotion alone. He processes it through logic: if someone has lied, they are unreliable. An unreliable source makes the world unsafe."
+  },
+  {
+    num:10, scene:"[SCENE] Siobhan asks Christopher how he is feeling after everything that has happened.",
+    prompt:"How does Christopher answer?",
+    hint:"Christopher struggles to name complex emotional states.",
+    literary:"Characterisation", correct:0, trait:"Unnamed feelings",
+    choices:[
+      {t:"He describes a physical sensation. Or says he does not know."},
+      {t:"He says he feels sad and confused, like anyone would."},
+      {t:"He changes the subject to something he understands better."},
+      {t:"He lists the bad events but does not name a feeling."},
+      {t:"He asks Siobhan what the correct feeling should be."}
+    ],
+    fb_c:"Correct. Christopher does not reach for ready-made emotional words. He might describe a physical sensation, or admit uncertainty. Literary element: characterisation through the limits of self-knowledge.",
+    fb_w:"Christopher doesn't perform emotions he can't name. He describes physical sensations or admits uncertainty. The gap between experience and language is one of the novel's most important characterisation tools."
+  },
+  {
+    num:11, scene:"[SCENE] Christopher passes his A-level maths exam.",
+    prompt:"What does passing the exam mean to Christopher?",
+    hint:"Christopher's identity is built on provable facts.",
+    literary:"Theme: identity", correct:1, trait:"Identity through proof",
+    choices:[
+      {t:"His teachers and parents believe in him now."},
+      {t:"It is proof. He did a hard thing. More hard things are possible."},
+      {t:"It means his parents were wrong to ever doubt him."},
+      {t:"He feels proud and happy, the way students usually do."}
+    ],
+    fb_c:"Exactly. Christopher's identity is built from facts he can prove. The exam result is data: it proves capability. From that proof, he extrapolates future possibility. Identity constructed from evidence. Literary element: theme of identity.",
+    fb_w:"Christopher doesn't interpret the exam in terms of what others think. He reads it as evidence: a proven fact about what he can do. Identity, for Christopher, is built from provable data."
+  },
+  {
+    num:12, scene:"[SCENE] At the very end of the novel, Christopher asks: does that mean I can do anything?",
+    prompt:"What is Christopher really asking?",
+    hint:"Christopher is not asking rhetorically. He wants a logical answer.",
+    literary:"Narrative voice · Theme: identity", correct:2, trait:"Future from evidence",
+    choices:[
+      {t:"He is hoping others will finally accept him as he is."},
+      {t:"He wants Siobhan to reassure him about the future."},
+      {t:"If hard thing A is proven, can hard thing B also be proven? He needs the logic confirmed."},
+      {t:"He is showing how much he has grown emotionally."},
+      {t:"He is expressing general optimism and hope."}
+    ],
+    fb_c:"Yes — Christopher is testing a logical proposition: hard thing A was achieved → hard thing B may be achievable. He wants the reasoning confirmed. This is who Christopher is to the last line: a mind that builds the future from proven facts.",
+    fb_w:"Christopher's final question is logical, not emotional. He is running an extrapolation. He wants a logical answer to a logical question."
+  }
+];
+
+// ── PHASE 2 QUESTIONS ────────────────────────────────────────────────────────
+// type: internal(green) / external(blue) / conflict(red) / value(gold) / strength(purple)
+const P2Q = [
+  {
+    num:1, prompt:"When something goes wrong in your life, what is your first instinct?",
+    choices:[
+      {t:"Try to understand what caused it logically.", type:"internal", label:"Logical response", color:"green"},
+      {t:"Talk to someone you trust about how you feel.", type:"external", label:"Seeking connection", color:"blue"},
+      {t:"Feel overwhelmed before you can act.", type:"conflict", label:"Emotional overload", color:"red"},
+      {t:"Look for what you can learn from it.", type:"value", label:"Growth mindset", color:"gold"}
+    ]
+  },
+  {
+    num:2, prompt:"Which of these best describes how you think about yourself?",
+    choices:[
+      {t:"I know who I am — my values and thoughts are clear to me.", type:"internal", label:"Clear self-concept", color:"green"},
+      {t:"I am shaped by the people around me.", type:"external", label:"Relational identity", color:"blue"},
+      {t:"I feel uncertain about who I really am.", type:"conflict", label:"Identity uncertainty", color:"red"},
+      {t:"I am still discovering who I am.", type:"value", label:"Identity in progress", color:"gold"},
+      {t:"I have things I'm really good at that define me.", type:"strength", label:"Identity through skills", color:"purple"}
+    ]
+  },
+  {
+    num:3, prompt:"What matters most to you in a friendship?",
+    choices:[
+      {t:"Honesty — I need people to tell me the truth.", type:"value", label:"Truth in friendship", color:"gold"},
+      {t:"Loyalty — being there no matter what.", type:"external", label:"Loyalty as bond", color:"blue"},
+      {t:"Understanding — being accepted as I am.", type:"internal", label:"Being understood", color:"green"},
+      {t:"It's complicated — I find friendships hard.", type:"conflict", label:"Social complexity", color:"red"}
+    ]
+  },
+  {
+    num:4, prompt:"When you face a big challenge, what helps you most?",
+    choices:[
+      {t:"Breaking it into smaller logical steps.", type:"internal", label:"Systematic thinking", color:"green"},
+      {t:"Support from family or friends.", type:"external", label:"External support", color:"blue"},
+      {t:"Reminding myself of what I've already achieved.", type:"strength", label:"Past achievement", color:"purple"},
+      {t:"I often struggle to find what helps.", type:"conflict", label:"Challenge with coping", color:"red"},
+      {t:"Focusing on what I believe in.", type:"value", label:"Values as anchor", color:"gold"}
+    ]
+  },
+  {
+    num:5, prompt:"Which of these best describes your relationship to rules?",
+    choices:[
+      {t:"Rules make sense to me and I follow them.", type:"internal", label:"Rule-following", color:"green"},
+      {t:"Rules are about what others expect of me.", type:"external", label:"Social expectation", color:"blue"},
+      {t:"I find rules confusing or contradictory.", type:"conflict", label:"Rule confusion", color:"red"},
+      {t:"I follow rules that align with my values.", type:"value", label:"Value-based rules", color:"gold"}
+    ]
+  },
+  {
+    num:6, prompt:"What is your strongest quality?",
+    choices:[
+      {t:"I notice details others miss.", type:"strength", label:"Attention to detail", color:"purple"},
+      {t:"I care deeply about the people in my life.", type:"external", label:"Deep caring", color:"blue"},
+      {t:"I am honest, even when it's uncomfortable.", type:"value", label:"Radical honesty", color:"gold"},
+      {t:"I solve problems in original ways.", type:"internal", label:"Original thinking", color:"green"},
+      {t:"I'm not sure what my strongest quality is.", type:"conflict", label:"Searching for strength", color:"red"}
+    ]
+  },
+  {
+    num:7, prompt:"How do you feel about being different from others?",
+    choices:[
+      {t:"I embrace it — being different is part of who I am.", type:"internal", label:"Difference as identity", color:"green"},
+      {t:"It's hard — I want to belong.", type:"conflict", label:"Longing for belonging", color:"red"},
+      {t:"I've learned to accept it from people who supported me.", type:"external", label:"Acceptance through others", color:"blue"},
+      {t:"I see it as a strength.", type:"strength", label:"Difference as strength", color:"purple"}
+    ]
+  },
+  {
+    num:8, prompt:"What is the most important thing that shaped who you are?",
+    choices:[
+      {t:"My family and how I was raised.", type:"external", label:"Family influence", color:"blue"},
+      {t:"My own experiences and what I've learned.", type:"internal", label:"Self-built identity", color:"green"},
+      {t:"Something difficult I went through.", type:"conflict", label:"Shaped by hardship", color:"red"},
+      {t:"What I believe in and stand for.", type:"value", label:"Values as foundation", color:"gold"},
+      {t:"My abilities and what I'm good at.", type:"strength", label:"Defined by abilities", color:"purple"}
+    ]
+  },
+  {
+    num:9, prompt:"When you feel overwhelmed, what do you do?",
+    choices:[
+      {t:"Find a quiet space and think things through.", type:"internal", label:"Solitary processing", color:"green"},
+      {t:"Reach out to someone I trust.", type:"external", label:"Support-seeking", color:"blue"},
+      {t:"I freeze and don't know what to do.", type:"conflict", label:"Overwhelm response", color:"red"},
+      {t:"Focus on something I can control.", type:"strength", label:"Focus and control", color:"purple"}
+    ]
+  },
+  {
+    num:10, prompt:"Which of these describes how you learn best?",
+    choices:[
+      {t:"With clear rules and systems.", type:"internal", label:"Systematic learning", color:"green"},
+      {t:"By talking it through with others.", type:"external", label:"Social learning", color:"blue"},
+      {t:"By doing and making mistakes.", type:"strength", label:"Learning by doing", color:"purple"},
+      {t:"I find it hard to concentrate and learn.", type:"conflict", label:"Learning difficulty", color:"red"},
+      {t:"By connecting it to things I care about.", type:"value", label:"Value-driven learning", color:"gold"}
+    ]
+  },
+  {
+    num:11, prompt:"What does success mean to you?",
+    choices:[
+      {t:"Achieving something measurable and proven.", type:"internal", label:"Proven achievement", color:"green"},
+      {t:"Being there for the people I love.", type:"external", label:"Relational success", color:"blue"},
+      {t:"Becoming a better version of myself.", type:"value", label:"Personal growth", color:"gold"},
+      {t:"Overcoming something that was difficult for me.", type:"strength", label:"Overcoming difficulty", color:"purple"},
+      {t:"I'm not sure what success means for me yet.", type:"conflict", label:"Undefined success", color:"red"}
+    ]
+  },
+  {
+    num:12, prompt:"If you could add one thing to your identity map right now, what would it be?",
+    choices:[
+      {t:"A deeper understanding of myself.", type:"internal", label:"Self-knowledge", color:"green"},
+      {t:"Stronger connections with others.", type:"external", label:"Deeper connection", color:"blue"},
+      {t:"More courage to face what scares me.", type:"conflict", label:"Confronting fear", color:"red"},
+      {t:"A clearer sense of what I stand for.", type:"value", label:"Clearer values", color:"gold"},
+      {t:"More confidence in my abilities.", type:"strength", label:"Self-confidence", color:"purple"}
+    ]
+  }
+];
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let p1current=0, lives=3, p1answered=false;
+let p1correct=0, p1wrong=0;
+let p1results=new Array(12).fill(null);
+let p1traits=[];
+
+let p2current=0, p2answered=false;
+let p2traits=[];
+let youCounts={internal:0,external:0,conflict:0,value:0,strength:0};
+let chrisCounts={internal:0,external:0,conflict:0}; // simplified for comparison
+
+// Color maps
+const TYPE_COLOR={internal:'green',external:'blue',conflict:'red',value:'gold',strength:'purple'};
+const TYPE_LABEL={internal:'Internal trait',external:'External influence',conflict:'Conflict',value:'Core value',strength:'Strength'};
+const SVG_COLORS={green:'#4ade9a',blue:'#70a8f0',red:'#f06060',gold:'#f0d080',purple:'#b080f0'};
+const SVG_FILLS={green:'rgba(74,222,154,0.15)',blue:'rgba(112,168,240,0.15)',red:'rgba(240,96,96,0.12)',gold:'rgba(240,208,128,0.12)',purple:'rgba(176,128,240,0.13)'};
+const SVG_STROKES={green:'rgba(74,222,154,0.45)',blue:'rgba(112,168,240,0.45)',red:'rgba(240,96,96,0.4)',gold:'rgba(240,208,128,0.4)',purple:'rgba(176,128,240,0.45)'};
+
+// ── BUILD PROGRESS ───────────────────────────────────────────────────────────
+function buildProgress(){
+  const t=document.getElementById('progress-track');
+  t.innerHTML=P1Q.map((_,i)=>`<div class="pseg" id="seg-${i}"></div>`).join('');
+  updateProgress();
+}
+function updateProgress(){
+  P1Q.forEach((_,i)=>{
+    const s=document.getElementById(`seg-${i}`);
+    if(!s)return;
+    if(p1results[i]==='correct')s.className='pseg done';
+    else if(p1results[i]==='wrong')s.className='pseg fail';
+    else if(i===p1current)s.className='pseg cur';
+    else s.className='pseg';
+  });
+}
+function renderLives(){
+  for(let i=1;i<=3;i++){
+    const el=document.getElementById(`l${i}`);
+    if(el) el.className='life'+(i>lives?' lost':'');
+  }
+}
+
+// ── PHASE 1 ──────────────────────────────────────────────────────────────────
+function renderP1(){
+  if(p1current>=P1Q.length){goToTransition();return;}
+  const q=P1Q[p1current];
+  document.getElementById('round-info').textContent=`Round ${p1current+1} / 12`;
+  p1answered=false;
+  updateProgress();
+  const letters=['A','B','C','D','E'];
+  document.getElementById('q-area').innerHTML=`
+    <div class="q-card">
+      <div class="q-eyebrow">Round ${q.num} · ${q.literary}</div>
+      <div class="q-scene">${q.scene}</div>
+      <div class="q-prompt">${q.prompt}</div>
+      <div class="hint-box">Think like Christopher — what would he actually do?</div>
+      <div class="choices">
+        ${q.choices.map((c,i)=>`
+          <button class="choice" id="ch${i}" onclick="p1choose(${i})">
+            <span class="cletter">${letters[i]}</span>${c.t}
+          </button>`).join('')}
+      </div>
+    </div>
+    <div class="feedback" id="feedback"></div>
+    <button class="next-btn" id="next-btn" onclick="p1next()">${p1current<P1Q.length-1?'Next round →':'See phase 1 results →'}</button>`;
+}
+
+function p1choose(i){
+  if(p1answered)return;
+  p1answered=true;
+  const q=P1Q[p1current];
+  const ok=i===q.correct;
+  document.querySelectorAll('.choice').forEach((b,idx)=>{
+    b.disabled=true;
+    if(idx===i) b.classList.add(ok?'c-correct':'c-wrong');
+    else if(idx===q.correct) b.classList.add('c-correct');
+    else b.classList.add('c-dim');
+  });
+  if(ok){
+    p1correct++; p1results[p1current]='correct'; p1traits.push(q.trait);
+    addP1Node(p1current,true);
+    document.getElementById('s-correct').textContent=p1correct;
+  } else {
+    p1wrong++; lives--; p1results[p1current]='wrong';
+    addP1Node(p1current,false);
+    renderLives();
+    document.getElementById('s-wrong').textContent=p1wrong;
+  }
+  document.getElementById('s-left').textContent=P1Q.length-p1current-1;
+  const fb=document.getElementById('feedback');
+  fb.className=`feedback show ${ok?'fb-c':'fb-w'}`;
+  fb.innerHTML=`<div class="fb-head">${ok?'✓ Correct — that is how Christopher thinks':'✗ Not quite — here is how Christopher sees it'}</div><div class="fb-tag">${q.literary}</div><div>${ok?q.fb_c:q.fb_w}</div>`;
+  updateProgress();
+  if(lives<=0){setTimeout(()=>document.getElementById('gameover').classList.add('show'),1100);return;}
+  document.getElementById('next-btn').className='next-btn show';
+}
+
+function addP1Node(idx,correct){
+  const pos=P1_NODES[idx];
+  const cx=130,cy=140;
+  const col=correct?'#4ade9a':'#f06060';
+  const fill=correct?'rgba(74,222,154,0.18)':'rgba(240,96,96,0.15)';
+  const stroke=correct?'rgba(74,222,154,0.5)':'rgba(240,96,96,0.5)';
+  addNodeToSVG('p1-lines','p1-nodes',pos,cx,cy,col,fill,stroke,P1Q[idx].trait,7);
+}
+
+function addNodeToSVG(linesId,nodesId,pos,cx,cy,col,fill,stroke,label,fontSize){
+  const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('x1',cx);line.setAttribute('y1',cy);
+  line.setAttribute('x2',pos.x);line.setAttribute('y2',pos.y);
+  line.setAttribute('stroke',col);line.setAttribute('stroke-width','0.8');
+  line.setAttribute('stroke-dasharray','3,4');line.setAttribute('opacity','0.45');
+  document.getElementById(linesId).appendChild(line);
+
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+  const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+  c.setAttribute('cx',pos.x);c.setAttribute('cy',pos.y);c.setAttribute('r','8');
+  c.setAttribute('fill',fill);c.setAttribute('stroke',stroke);c.setAttribute('stroke-width','1.5');
+  g.appendChild(c);
+  const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+  t.setAttribute('x',pos.x);
+  // Smart label placement: push label outward from center
+  const dx=pos.x-cx, dy=pos.y-cy;
+  const len=Math.sqrt(dx*dx+dy*dy)||1;
+  const lx=pos.x+dx/len*14, ly=pos.y+dy/len*14;
+  t.setAttribute('x',lx);t.setAttribute('y',ly);
+  t.setAttribute('text-anchor','middle');
+  t.setAttribute('dominant-baseline','middle');
+  t.setAttribute('font-family','DM Mono');t.setAttribute('font-size',fontSize||'7');
+  t.setAttribute('fill',col);
+  t.textContent=label.length>13?label.slice(0,12)+'…':label;
+  g.appendChild(t);
+  document.getElementById(nodesId).appendChild(g);
+  g.style.opacity='0';
+  setTimeout(()=>{g.style.transition='opacity 0.4s';g.style.opacity='1';},60);
+}
+
+function p1next(){
+  p1current++;
+  if(p1current>=P1Q.length)goToTransition();
+  else renderP1();
+}
+
+// ── TRANSITION ───────────────────────────────────────────────────────────────
+function goToTransition(){
+  document.getElementById('gameover').classList.remove('show');
+  document.getElementById('phase1').style.display='none';
+  document.getElementById('t-correct').textContent=p1correct;
+  document.getElementById('t-wrong').textContent=p1wrong;
+  document.getElementById('transition-screen').classList.add('show');
+  document.getElementById('round-info').textContent='Phase 2 coming';
+  // Hide lives for phase 2
+  document.getElementById('lives').style.display='none';
+}
+
+function startPhase2(){
+  document.getElementById('transition-screen').classList.remove('show');
+  document.getElementById('phase2').style.display='block';
+  document.getElementById('round-info').textContent='Your map 1 / 12';
+  // Rebuild progress for phase 2 (reuse bar, reset color)
+  document.getElementById('progress-track').innerHTML=P2Q.map((_,i)=>`<div class="pseg" id="p2seg-${i}"></div>`).join('');
+  // Copy Christopher's completed map to phase 2 panel
+  mirrorChrisMap();
+  renderP2();
+}
+
+function mirrorChrisMap(){
+  // Draw all p1 results onto the phase 2 Christopher map
+  const cx=130,cy=130;
+  P1Q.forEach((q,i)=>{
+    const pos=P2_NODES[i];
+    const ok=p1results[i]==='correct';
+    const col=ok?'#4ade9a':'#f06060';
+    const fill=ok?'rgba(74,222,154,0.18)':'rgba(240,96,96,0.15)';
+    const stroke=ok?'rgba(74,222,154,0.5)':'rgba(240,96,96,0.5)';
+    addNodeToSVG('p2-c-lines','p2-c-nodes',pos,cx,cy,col,fill,stroke,q.trait,6.5);
+  });
+  // Count for Christopher's compare data
+  p1results.forEach((r,i)=>{
+    if(r==='correct') chrisCounts.internal++;
+    else if(r==='wrong') chrisCounts.conflict++;
+  });
+  // Legend
+  document.getElementById('p2-c-legend').innerHTML=`
+    <div class="legend-pip"><div class="pip-dot" style="background:var(--correct)"></div>${p1correct} correct</div>
+    <div class="legend-pip"><div class="pip-dot" style="background:var(--wrong)"></div>${p1wrong} wrong</div>`;
+}
+
+// ── PHASE 2 ──────────────────────────────────────────────────────────────────
+function renderP2(){
+  if(p2current>=P2Q.length){showEnd();return;}
+  const q=P2Q[p2current];
+  document.getElementById('round-info').textContent=`Your map ${p2current+1} / 12`;
+  p2answered=false;
+  // Update p2 progress
+  P2Q.forEach((_,i)=>{
+    const s=document.getElementById(`p2seg-${i}`);
+    if(!s)return;
+    if(i<p2current) s.className='pseg done';
+    else if(i===p2current) s.className='pseg cur';
+    else s.className='pseg';
+  });
+  const letters=['A','B','C','D','E'];
+  document.getElementById('p2-q-area').innerHTML=`
+    <div class="q-card" style="animation:up 0.35s ease;">
+      <div class="q-eyebrow" style="color:var(--blue)">About you · Question ${q.num}</div>
+      <div class="q-prompt">${q.prompt}</div>
+      <div class="choices">
+        ${q.choices.map((c,i)=>`
+          <button class="choice" id="p2ch${i}" onclick="p2choose(${i})">
+            <span class="cletter">${letters[i]}</span>${c.t}
+          </button>`).join('')}
+      </div>
+    </div>
+    <div class="feedback" id="p2-feedback"></div>
+    <button class="next-btn gold" id="p2-next" onclick="p2next()" style="display:none;">${p2current<P2Q.length-1?'Next question →':'See both maps →'}</button>`;
+}
+
+function p2choose(i){
+  if(p2answered)return;
+  p2answered=true;
+  const q=P2Q[p2current];
+  const ch=q.choices[i];
+  const colorClass=`p2-${ch.color==='green'?'internal':ch.color==='blue'?'external':ch.color==='red'?'conflict':ch.color==='gold'?'value':'strength'}`;
+  document.querySelectorAll('.choice').forEach((b,idx)=>{
+    b.disabled=true;
+    if(idx===i) b.classList.add(colorClass);
+    else b.classList.add('c-dim');
+  });
+  youCounts[ch.type]=(youCounts[ch.type]||0)+1;
+  p2traits.push({label:ch.label,color:ch.color});
+  addP2YouNode(p2current,ch);
+  // Update legend
+  updateP2YouLegend();
+  const fb=document.getElementById('p2-feedback');
+  fb.className='feedback show fb-p2';
+  fb.innerHTML=`<div class="fb-head" style="color:${SVG_COLORS[ch.color]}">${TYPE_LABEL[ch.type]} — ${ch.label}</div><div style="color:var(--muted);font-size:12px;margin-top:4px;">This trait has been added to your identity map.</div>`;
+  document.getElementById('p2-next').style.display='inline-block';
+}
+
+function addP2YouNode(idx,ch){
+  const pos=P2_NODES[idx];
+  const cx=130,cy=130;
+  const col=SVG_COLORS[ch.color];
+  const fill=SVG_FILLS[ch.color];
+  const stroke=SVG_STROKES[ch.color];
+  addNodeToSVG('p2-y-lines','p2-y-nodes',pos,cx,cy,col,fill,stroke,ch.label,6.5);
+}
+
+function updateP2YouLegend(){
+  const counts={};
+  p2traits.forEach(t=>{counts[t.color]=(counts[t.color]||0)+1;});
+  const colorNames={green:'Internal',blue:'External',red:'Conflict',gold:'Value',purple:'Strength'};
+  document.getElementById('p2-y-legend').innerHTML=Object.entries(counts).map(([c,n])=>
+    `<div class="legend-pip"><div class="pip-dot" style="background:${SVG_COLORS[c]}"></div>${n} ${colorNames[c]}</div>`
+  ).join('');
+}
+
+function p2next(){
+  p2current++;
+  if(p2current>=P2Q.length)showEnd();
+  else renderP2();
+}
+
+// ── END SCREEN ───────────────────────────────────────────────────────────────
+function showEnd(){
+  document.getElementById('phase2').style.display='none';
+  document.getElementById('round-info').textContent='Complete';
+
+  // Build end maps
+  const endCx=110,endCy=110;
+  // Christopher's end map
+  P1Q.forEach((q,i)=>{
+    const pos=END_NODES[i];
+    const ok=p1results[i]==='correct';
+    const col=ok?'#4ade9a':'#f06060';
+    const fill=ok?'rgba(74,222,154,0.18)':'rgba(240,96,96,0.15)';
+    const stroke=ok?'rgba(74,222,154,0.5)':'rgba(240,96,96,0.5)';
+    addNodeToSVG('end-c-lines','end-c-nodes',pos,endCx,endCy,col,fill,stroke,q.trait,6);
+  });
+  // Your end map
+  p2traits.forEach((tr,i)=>{
+    const pos=END_NODES[i];
+    const col=SVG_COLORS[tr.color];
+    const fill=SVG_FILLS[tr.color];
+    const stroke=SVG_STROKES[tr.color];
+    addNodeToSVG('end-y-lines','end-y-nodes',pos,endCx,endCy,col,fill,stroke,tr.label,6);
+  });
+
+  // Trait clouds
+  document.getElementById('end-c-traits').innerHTML=p1traits.map(t=>
+    `<span class="tpill green">${t}</span>`).join('');
+  document.getElementById('end-y-traits').innerHTML=p2traits.map(t=>
+    `<span class="tpill ${t.color}">${t.label}</span>`).join('');
+
+  // Comparison
+  const youTotal=Object.values(youCounts).reduce((a,b)=>a+b,0)||1;
+  const chrisTotal=12;
+  const categories=[
+    {label:'Internal traits', youKey:'internal', chrisVal:p1correct, color:'#4ade9a'},
+    {label:'External influences', youKey:'external', chrisVal:Math.round(p1wrong*0.4), color:'#70a8f0'},
+    {label:'Conflicts/tensions', youKey:'conflict', chrisVal:p1wrong, color:'#f06060'},
+    {label:'Core values', youKey:'value', chrisVal:0, color:'#f0d080'},
+    {label:'Strengths', youKey:'strength', chrisVal:Math.round(p1correct*0.3), color:'#b080f0'},
+  ];
+  const maxVal=12;
+  document.getElementById('compare-rows').innerHTML=categories.map(cat=>{
+    const youVal=youCounts[cat.youKey]||0;
+    const chrisVal=Math.min(cat.chrisVal,12);
+    const youW=Math.round((youVal/maxVal)*180);
+    const chrisW=Math.round((chrisVal/maxVal)*180);
+    return `<div class="compare-row">
+      <span class="compare-label">${cat.label}</span>
+      <div class="compare-bar-wrap">
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--muted);width:20px;">You</div>
+            <div class="compare-bar" style="width:${youW}px;background:${cat.color};opacity:0.85;"></div>
+            <span class="compare-val">${youVal}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--muted);width:20px;">Chr.</div>
+            <div class="compare-bar" style="width:${chrisW}px;background:${cat.color};opacity:0.35;"></div>
+            <span class="compare-val">${chrisVal}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('end-screen').className='end-screen show';
+}
+
+// ── RESTART ──────────────────────────────────────────────────────────────────
+function restart(){
+  p1current=0;lives=3;p1answered=false;p1correct=0;p1wrong=0;
+  p1results=new Array(12).fill(null);p1traits=[];
+  p2current=0;p2answered=false;p2traits=[];
+  youCounts={internal:0,external:0,conflict:0,value:0,strength:0};
+  chrisCounts={internal:0,external:0,conflict:0};
+  ['p1-lines','p1-nodes','p2-c-lines','p2-c-nodes','p2-y-lines','p2-y-nodes','end-c-lines','end-c-nodes','end-y-lines','end-y-nodes'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.innerHTML='';
+  });
+  document.getElementById('s-correct').textContent='0';
+  document.getElementById('s-wrong').textContent='0';
+  document.getElementById('s-left').textContent='12';
+  document.getElementById('lives').style.display='flex';
+  document.getElementById('gameover').classList.remove('show');
+  document.getElementById('end-screen').className='end-screen';
+  document.getElementById('transition-screen').classList.remove('show');
+  document.getElementById('phase2').style.display='none';
+  document.getElementById('phase1').style.display='block';
+  renderLives();
+  buildProgress();
+  renderP1();
+}
+
+// ── SHUFFLE ───────────────────────────────────────────────────────────────────
+function shuffleP1Questions(){
+  P1Q.forEach(q=>{
+    const indexed=q.choices.map((c,i)=>({...c,origIdx:i}));
+    for(let i=indexed.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [indexed[i],indexed[j]]=[indexed[j],indexed[i]];
+    }
+    q.correct=indexed.findIndex(c=>c.origIdx===q.correct);
+    q.choices=indexed;
+  });
+}
+
+// ── INTRO ─────────────────────────────────────────────────────────────────────
+function showIntro(){
+  document.getElementById('phase1').style.display='none';
+  document.getElementById('intro-screen').style.display='block';
+}
+function startGame(){
+  document.getElementById('intro-screen').style.display='none';
+  document.getElementById('phase1').style.display='block';
+  buildProgress();
+  renderLives();
+  renderP1();
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+shuffleP1Questions();
+showIntro();
+</script>
+</body>
+</html>
